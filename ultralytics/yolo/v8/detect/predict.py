@@ -20,16 +20,24 @@ from deep_sort_pytorch.utils.parser import get_config
 from deep_sort_pytorch.deep_sort import DeepSort
 from collections import deque
 import numpy as np
+# 定义调色板
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
+
+# 定义一个空字典，用于存储数据
 data_deque = {}
 
+# 初始化 DeepSort 目标跟踪器
 deepsort = None
 
+
 def init_tracker():
+    # 初始化 DeepSort 目标跟踪器
     global deepsort
+    # 获取 DeepSort 配置
     cfg_deep = get_config()
     cfg_deep.merge_from_file("deep_sort_pytorch/configs/deep_sort.yaml")
 
+    # 初始化 DeepSort
     deepsort= DeepSort(cfg_deep.DEEPSORT.REID_CKPT,
                             max_dist=cfg_deep.DEEPSORT.MAX_DIST, min_confidence=cfg_deep.DEEPSORT.MIN_CONFIDENCE,
                             nms_max_overlap=cfg_deep.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg_deep.DEEPSORT.MAX_IOU_DISTANCE,
@@ -37,7 +45,7 @@ def init_tracker():
                             use_cuda=True)
 ##########################################################################################
 def xyxy_to_xywh(*xyxy):
-    """" Calculates the relative bounding box from absolute pixel values. """
+    """" 从绝对像素值计算相对边界框。 """
     bbox_left = min([xyxy[0].item(), xyxy[2].item()])
     bbox_top = min([xyxy[1].item(), xyxy[3].item()])
     bbox_w = abs(xyxy[0].item() - xyxy[2].item())
@@ -47,7 +55,7 @@ def xyxy_to_xywh(*xyxy):
     w = bbox_w
     h = bbox_h
     return x_c, y_c, w, h
-
+# 将绝对坐标的边界框转换为左上角坐标、宽度和高度
 def xyxy_to_tlwh(bbox_xyxy):
     tlwh_bboxs = []
     for i, box in enumerate(bbox_xyxy):
@@ -60,42 +68,44 @@ def xyxy_to_tlwh(bbox_xyxy):
         tlwh_bboxs.append(tlwh_obj)
     return tlwh_bboxs
 
+
 def compute_color_for_labels(label):
     """
-    Simple function that adds fixed color depending on the class
+    根据类别添加固定颜色的简单函数
     """
-    if label == 0: #person
+    if label == 0: #人
         color = (85,45,255)
-    elif label == 2: # Car
+    elif label == 2: #汽车
         color = (222,82,175)
-    elif label == 3:  # Motobike
+    elif label == 3:  #摩托车
         color = (0, 204, 255)
-    elif label == 5:  # Bus
+    elif label == 5:  #公交车
         color = (0, 149, 255)
     else:
         color = [int((p * (label ** 2 - label + 1)) % 255) for p in palette]
     return tuple(color)
 
+
 def draw_border(img, pt1, pt2, color, thickness, r, d):
     x1,y1 = pt1
     x2,y2 = pt2
-    # Top left
+    # 左上角
     cv2.line(img, (x1 + r, y1), (x1 + r + d, y1), color, thickness)
     cv2.line(img, (x1, y1 + r), (x1, y1 + r + d), color, thickness)
     cv2.ellipse(img, (x1 + r, y1 + r), (r, r), 180, 0, 90, color, thickness)
-    # Top right
+    # 右上角
     cv2.line(img, (x2 - r, y1), (x2 - r - d, y1), color, thickness)
     cv2.line(img, (x2, y1 + r), (x2, y1 + r + d), color, thickness)
     cv2.ellipse(img, (x2 - r, y1 + r), (r, r), 270, 0, 90, color, thickness)
-    # Bottom left
+    # 左下角
     cv2.line(img, (x1 + r, y2), (x1 + r + d, y2), color, thickness)
     cv2.line(img, (x1, y2 - r), (x1, y2 - r - d), color, thickness)
     cv2.ellipse(img, (x1 + r, y2 - r), (r, r), 90, 0, 90, color, thickness)
-    # Bottom right
+    # 右下角
     cv2.line(img, (x2 - r, y2), (x2 - r - d, y2), color, thickness)
     cv2.line(img, (x2, y2 - r), (x2, y2 - r - d), color, thickness)
     cv2.ellipse(img, (x2 - r, y2 - r), (r, r), 0, 0, 90, color, thickness)
-
+    # 计算边界框的中心点
     cv2.rectangle(img, (x1 + r, y1), (x2 - r, y2), color, -1, cv2.LINE_AA)
     cv2.rectangle(img, (x1, y1 + r), (x2, y2 - r - d), color, -1, cv2.LINE_AA)
     
@@ -106,12 +116,14 @@ def draw_border(img, pt1, pt2, color, thickness, r, d):
     
     return img
 
-def UI_box(x, img, color=None, label=None, line_thickness=None):
+def UI_box(x, img, color=None, label=None, line_thickness=None,center_position):
     # Plots one bounding box on image img
     tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
     color = color or [random.randint(0, 255) for _ in range(3)]
     c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
     cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
+    if center_positon:
+        cv2.circle(img, center_pisition, 2, color, 12)
     if label:
         tf = max(tl - 1, 1)  # font thickness
         t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
@@ -138,7 +150,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
         y1 += offset[1]
         y2 += offset[1]
 
-        # code to find center of bottom edge
+        # 返回检测中心
         center = (int((x2+x1)/ 2), int((y2+y2)/2))
 
         # get ID of object
@@ -153,7 +165,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # add center to buffer
         data_deque[id].appendleft(center)
-        UI_box(box, img, label=label, color=color, line_thickness=2)
+        UI_box(box, img, label=label, color=color, line_thickness=2，center)
         # draw trail
         for i in range(1, len(data_deque[id])):
             # check if on buffer value is none
@@ -241,7 +253,7 @@ class DetectionPredictor(BasePredictor):
             draw_boxes(im0, bbox_xyxy, self.model.names, object_id,identities)
 
         return log_string
-
+        
 
 @hydra.main(version_base=None, config_path=str(DEFAULT_CONFIG.parent), config_name=DEFAULT_CONFIG.name)
 def predict(cfg):
@@ -250,8 +262,13 @@ def predict(cfg):
     cfg.imgsz = check_imgsz(cfg.imgsz, min_dim=2)  # check image size
     cfg.source = cfg.source if cfg.source is not None else ROOT / "assets"
     predictor = DetectionPredictor(cfg)
+
     predictor()
+    
+
 
 
 if __name__ == "__main__":
+
     predict()
+    
