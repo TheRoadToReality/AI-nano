@@ -7,11 +7,22 @@
 ```
 bash Miniconda3-latest-Linux-aarch64.sh 
 ```
+添加conda到环境变量
+```
+export PATH="/home/chench/miniconda/bin:$PATH"
+```
+创建一个名叫yes的环境
+```
+conda create -n yes python=3.8
+```
+激活该环境
+```
+conda activate yes
+```
 ## 运行代码
 - 安装依赖
 ```
 Sudo pip install -r requirement.txt
-
 ```
 -运行代码
 ```

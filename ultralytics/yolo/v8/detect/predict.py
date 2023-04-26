@@ -28,7 +28,8 @@ data_deque = {}
 
 # 初始化 DeepSort 目标跟踪器
 deepsort = None
-
+# 初始化中心坐标
+center = None
 
 def init_tracker():
     # 初始化 DeepSort 目标跟踪器
@@ -44,6 +45,10 @@ def init_tracker():
                             max_age=cfg_deep.DEEPSORT.MAX_AGE, n_init=cfg_deep.DEEPSORT.N_INIT, nn_budget=cfg_deep.DEEPSORT.NN_BUDGET,
                             use_cuda=True)
 ##########################################################################################
+def drone_trcak(center_position):
+    dx = 128
+    dy = 320
+    xv = center_position[0]-dx 
 def xyxy_to_xywh(*xyxy):
     """" 从绝对像素值计算相对边界框。 """
     bbox_left = min([xyxy[0].item(), xyxy[2].item()])
@@ -116,14 +121,13 @@ def draw_border(img, pt1, pt2, color, thickness, r, d):
     
     return img
 
-def UI_box(x, img, color=None, label=None, line_thickness=None,center_position):
+def UI_box(x, img, center_position,color=None, label=None,line_thickness=None):
     # Plots one bounding box on image img
     tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
     color = color or [random.randint(0, 255) for _ in range(3)]
     c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
     cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
-    if center_positon:
-        cv2.circle(img, center_pisition, 2, color, 12)
+    cv2.circle(img, center_position, 2, color, 12)
     if label:
         tf = max(tl - 1, 1)  # font thickness
         t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
@@ -151,7 +155,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
         y2 += offset[1]
 
         # 返回检测中心
-        center = (int((x2+x1)/ 2), int((y2+y2)/2))
+        center = (int((x2+x1)/ 2), int((y1+y2)/2))
 
         # get ID of object
         id = int(identities[i]) if identities is not None else 0
@@ -165,7 +169,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # add center to buffer
         data_deque[id].appendleft(center)
-        UI_box(box, img, label=label, color=color, line_thickness=2，center)
+        UI_box(box, img, center,label=label,color=color, line_thickness=2)
         # draw trail
         for i in range(1, len(data_deque[id])):
             # check if on buffer value is none
