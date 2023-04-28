@@ -19,6 +19,48 @@ conda create -n yes python=3.8
 ```
 conda activate yes
 ```
+## 安装ROS/Mavlink/MavROS(Ubuntu18.04)
+
+```
+sudo apt-get install ros-melodic-mavros ros-melodic-mavros-extras
+```
+```
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+sudo bash ./install_geographiclib_datasets.sh   
+```
+```
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws
+catkin init
+wstool init src
+```
+```
+sudo apt-get install python-catkin-tools python-rosinstall-generator -y
+```
+```
+$ wstool init ~/catkin_ws/src
+```
+```
+rosinstall_generator --rosdistro melodic mavlink | tee /tmp/mavros.rosinstall
+```
+```
+rosinstall_generator --upstream mavros | tee -a /tmp/mavros.rosinstall
+```
+```
+wstool merge -t src /tmp/mavros.rosinstall
+wstool update -t src -j4
+rosdep install --from-paths src --ignore-src -y
+```
+```
+./src/mavros/mavros/scripts/install_geographiclib_datasets.sh
+
+```
+```
+catkin build
+```
+```
+source devel/setup.bash
+```
 ## 运行代码
 - 安装依赖
 ```
